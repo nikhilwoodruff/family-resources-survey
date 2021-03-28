@@ -2,8 +2,8 @@ from typing import Tuple
 import pandas as pd
 from functools import reduce
 
-def expand_multiple_occurrences(
-    table: pd.DataFrame, max_count: int, count_label: str
+def consolidate(
+    table: pd.DataFrame, max_count: int = 1, count_label: str = None
 ) -> pd.DataFrame:
     """Converts a table containing multiple entries per person into a table with numbered repetitions of each column for each entry, limited to a maximum, with excess entries summed into an 'other' column.
 
@@ -24,7 +24,8 @@ def expand_multiple_occurrences(
     remaining = gb.nth(other_jobs)
     suffix = ("_other", "")[max_count == 1]
     df = df.join(remaining.groupby(remaining.index).sum().add_suffix(suffix))
-    df[count_label] = gb.size()
+    if count_label is not None:
+        df[count_label] = gb.size()
     return df.fillna(0)
 
 def join_2_tables(df1 : pd.DataFrame, df2 : pd.DataFrame) -> pd.DataFrame:
