@@ -4,7 +4,7 @@ import os
 import shutil
 from tqdm import tqdm
 
-FRS = Path(__file__).parent
+FRS_path = Path(__file__).parent
 
 
 table_entities = dict(
@@ -96,12 +96,12 @@ def save(folder: str, year: int, zipped: bool = True) -> None:
     if not os.path.exists(folder):
         raise FileNotFoundError("Invalid path supplied.")
     if zipped:
-        new_folder = FRS / "data" / "tmp"
+        new_folder = FRS_path / "data" / "tmp"
         shutil.unpack_archive(folder, new_folder)
         folder = new_folder
     main_folder = next(folder.iterdir())
     year = str(year)
-    target_folder = FRS / "data" / year / "raw"
+    target_folder = FRS_path / "data" / year / "raw"
     if os.path.exists(target_folder):
         # Overwrite
         shutil.rmtree(target_folder)
@@ -126,5 +126,5 @@ def save(folder: str, year: int, zipped: bool = True) -> None:
 
     # Clean up tmp storage.
 
-    if (FRS / "data" / "tmp").exists():
-        shutil.rmtree(FRS / "data" / "tmp")
+    if (FRS_path / "data" / "tmp").exists():
+        shutil.rmtree(FRS_path / "data" / "tmp")
