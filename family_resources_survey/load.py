@@ -1,9 +1,10 @@
+import json
 import pandas as pd
 import numpy as np
 import microdf as mdf
 from typing import Union, List
 from family_resources_survey.save import FRS_path, table_to_entity
-from types import SimpleNamespace
+from pathlib import Path
 
 
 def load(
@@ -32,8 +33,15 @@ class FRS:
     def __init__(self, year : int):
         self.year = year
         self.tables = {}
+        self.data_path = FRS_path / "data" / str(year)
+        codebook_path = self.data_path / "codebook.json"
+        if codebook_path.exists():
+            with open(codebook_path, "r") as f:
+                self.description = json.load(f)
     
     def __getattr__(self, name: str) -> pd.DataFrame:
+        if name == "description":
+            return self.description
         if name not in self.tables:
             self.tables[name] = load(self.year, name)
         return self.tables[name]

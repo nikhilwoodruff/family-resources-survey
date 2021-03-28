@@ -13,6 +13,8 @@ setup(
     install_requires=[
         "pandas",
         "microdf @ git+https://github.com/pslmodels/microdf",
+        "openpyxl",
+        "xlrd"
     ],
     entry_points={
         "console_scripts": ["frs-data=family_resources_survey.main:main"],

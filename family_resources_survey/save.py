@@ -3,6 +3,8 @@ from pathlib import Path
 import os
 import shutil
 from tqdm import tqdm
+import warnings
+import json
 
 FRS_path = Path(__file__).parent
 
@@ -77,6 +79,28 @@ def index_table(table, entity_name):
         ADMIN_COLUMNS, axis=1, errors="ignore"
     )
 
+def parse_codebook(main_folder : Path) -> dict:
+    excel_folder = main_folder / "mrdoc" / "excel"
+    if excel_folder.exists():
+        matches = tuple(excel_folder.glob("*hierarchical_benv_income*.xlsx"))
+        if len(matches) == 0:
+            raise FileNotFoundError("Found the excel folder, but could not find the codebook.")
+        else:
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    xls = pd.ExcelFile(matches[0], engine="openpyxl")
+                    df = pd.read_excel(xls, "VARIABLE LISTING")
+                    description = {}
+                    for i, row in df.iterrows():
+                        if row.VARIABLE not in description:
+                            description[row["VARIABLE"]] = row["DESCRIPTION (SAS LABEL)"]
+                return description
+            except:
+                raise Exception("Couldn't parse the codebook.")
+    else:
+        raise FileNotFoundError("Could not find the excel codebook folder.")
+
 
 def save(folder: str, year: int, zipped: bool = True) -> None:
     """Save the FRS microdata to the package internal storage.
@@ -113,7 +137,7 @@ def save(folder: str, year: int, zipped: bool = True) -> None:
         data_folder = main_folder / "tab"
         data_files = list(data_folder.glob("*.tab"))
         task = tqdm(data_files, desc="Indexing data tables")
-        for filepath in task:
+        for i, filepath in enumerate(task):
             task.set_description(f"Indexing {filepath.name}")
             table_name = filepath.name.replace(".tab", "")
             if table_name in table_to_entity:
@@ -121,8 +145,19 @@ def save(folder: str, year: int, zipped: bool = True) -> None:
                 df = pd.read_csv(filepath, delimiter="\t", low_memory=False).apply(pd.to_numeric, errors="coerce")
                 df = index_table(df, entity_name)
                 df.to_csv(target_folder / (table_name + ".csv"))
+            if i == len(task) - 1:
+                task.set_description("Indexed all tables")
     else:
         raise FileNotFoundError("Could not find the TAB files.")
+
+    # Look for the codebook.
+
+    try:
+        description = parse_codebook(main_folder)
+        with open(FRS_path / "data" / year / "codebook.json", "w+") as f:
+            json.dump(description, f)
+    except:
+        print("Couldn't automatically parse the codebook.")
 
     # Clean up tmp storage.
 
