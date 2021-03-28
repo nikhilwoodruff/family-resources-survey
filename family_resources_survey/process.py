@@ -1,15 +1,21 @@
 import pandas as pd
 
-def person_id(df : pd.DataFrame) -> pd.Series:
-    return df.sernum * 1e+2 + df.BENUNIT + df.PERSON
 
-def benunit_id(df : pd.DataFrame) -> pd.Series:
-    return df.sernum * 1e+2 + df.BENUNIT
+def person_id(df: pd.DataFrame) -> pd.Series:
+    return df.sernum * 1e2 + df.BENUNIT + df.PERSON
 
-def household_id(df : pd.DataFrame) -> pd.Series:
+
+def benunit_id(df: pd.DataFrame) -> pd.Series:
+    return df.sernum * 1e2 + df.BENUNIT
+
+
+def household_id(df: pd.DataFrame) -> pd.Series:
     return df.sernum
 
-def expand_multiple_occurrences(table : pd.DataFrame, id_col : str, max_count : int, count_label : str) -> pd.DataFrame:
+
+def expand_multiple_occurrences(
+    table: pd.DataFrame, id_col: str, max_count: int, count_label: str
+) -> pd.DataFrame:
     """Converts a table containing multiple entries per person into a table with numbered repetitions of each column for each entry, limited to a maximum, with excess entries summed into an 'other' column.
 
     Args:

@@ -5,7 +5,8 @@ import shutil
 
 FRS = Path(__file__).parent
 
-def save(folder : str, year : int, zipped : bool = True) -> None:
+
+def save(folder: str, year: int, zipped: bool = True) -> None:
     """Save the FRS microdata to the package internal storage.
 
     Args:
@@ -46,6 +47,6 @@ def save(folder : str, year : int, zipped : bool = True) -> None:
         shutil.copyfile(filepath, target_folder / filepath.name)
 
     # Clean up tmp storage.
-        
+
     if (FRS / "data" / "tmp").exists():
         shutil.rmtree(FRS / "data" / "tmp")
