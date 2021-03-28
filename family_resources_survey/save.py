@@ -118,7 +118,7 @@ def save(folder: str, year: int, zipped: bool = True) -> None:
             table_name = filepath.name.replace(".tab", "")
             if table_name in table_to_entity:
                 entity_name = table_to_entity[table_name]
-                df = pd.read_csv(filepath, delimiter="\t", low_memory=False)
+                df = pd.read_csv(filepath, delimiter="\t", low_memory=False).apply(pd.to_numeric, errors="coerce")
                 df = index_table(df, entity_name)
                 df.to_csv(target_folder / (table_name + ".csv"))
     else:
