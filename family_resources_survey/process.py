@@ -1,5 +1,6 @@
+from typing import Tuple
 import pandas as pd
-
+from functools import reduce
 
 def expand_multiple_occurrences(
     table: pd.DataFrame, max_count: int, count_label: str
@@ -25,3 +26,14 @@ def expand_multiple_occurrences(
     df = df.join(remaining.groupby(remaining.index).sum().add_suffix(suffix))
     df[count_label] = gb.size()
     return df.fillna(0)
+
+def join_2_tables(df1 : pd.DataFrame, df2 : pd.DataFrame) -> pd.DataFrame:
+    """Joins two tables.
+    """
+    return df1.join(df2[df2.columns.difference(df1.columns)])
+
+
+def join(*tables : Tuple[pd.DataFrame]) -> pd.DataFrame:
+    """Joins the tables given.
+    """
+    return reduce(join_2_tables, tables)
