@@ -25,6 +25,8 @@ def load(
             ).apply(pd.to_numeric, errors="coerce")
             if table in ("adult", "benunit", "househol") and return_mdf:
                 df = mdf.MicroDataFrame(df, weights="GROSS4")
+            else:
+                df = mdf.MicroDataFrame(df)
         codebook_path = data_path.parent / "codebook.json"
         if codebook_path.exists():
             with open(codebook_path, "r") as f:
