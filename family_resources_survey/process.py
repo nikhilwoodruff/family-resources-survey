@@ -1,8 +1,6 @@
 import pandas as pd
 
 
-
-
 def expand_multiple_occurrences(
     table: pd.DataFrame, max_count: int, count_label: str
 ) -> pd.DataFrame:

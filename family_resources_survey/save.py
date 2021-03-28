@@ -21,7 +21,7 @@ table_entities = dict(
         "maint",
         "oddjob",
         "penprov",
-        "pension"
+        "pension",
     ],
     benunit=[
         "benunit",
@@ -34,8 +34,8 @@ table_entities = dict(
         "mortgage",
         "owner",
         "rentcont",
-        "renter"
-    ]
+        "renter",
+    ],
 )
 
 table_to_entity = {}
@@ -44,13 +44,7 @@ for entity, tables in table_entities.items():
     for table_name in tables:
         table_to_entity[table_name] = entity
 
-ADMIN_COLUMNS = [
-    'sernum',
-    'BENUNIT',
-    'PERSON',
-    'ISSUE', 
-    'MONTH'
-]
+ADMIN_COLUMNS = ["sernum", "BENUNIT", "PERSON", "ISSUE", "MONTH"]
 
 
 def person_id(df: pd.DataFrame) -> pd.Series:
@@ -79,7 +73,9 @@ def index_table(table, entity_name):
         table["household_id"] = household_id(table)
     elif entity_name == "household":
         table["household_id"] = household_id(table)
-    return table.set_index(f"{entity_name}_id").drop(ADMIN_COLUMNS, axis=1, errors="ignore")
+    return table.set_index(f"{entity_name}_id").drop(
+        ADMIN_COLUMNS, axis=1, errors="ignore"
+    )
 
 
 def save(folder: str, year: int, zipped: bool = True) -> None:
