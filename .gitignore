@@ -2,3 +2,4 @@ family_resources_survey/data
 *.egg-info
 __pycache__
 .vscode
+.ipynb_checkpoints
