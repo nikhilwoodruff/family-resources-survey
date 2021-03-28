@@ -8,7 +8,7 @@ def load(year: int, table : str = None, return_mdf : bool = True, columns : List
     data_path = FRS / "data" / year / "raw"
     if data_path.exists():
         if table is not None:
-            df = pd.read_csv(data_path / table + ".tab", delimiter="\t", usecols=columns)
+            df = pd.read_csv(data_path / (table + ".tab"), delimiter="\t", usecols=columns)
             if table in ("adult", "benunit", "household") and return_mdf:
                 df = mdf.MicroDataFrame(df, weights="GROSS4")
         else:
