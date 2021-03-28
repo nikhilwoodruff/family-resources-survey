@@ -65,7 +65,16 @@ def household_id(df: pd.DataFrame) -> pd.Series:
     return df.sernum
 
 
-def index_table(table, entity_name):
+def index_table(table : pd.DataFrame, entity_name : str):
+    """Indexes by the primary key, and adds the foreign keys as columns.
+
+    Args:
+        table (pd.DataFrame): The table to index.
+        entity_name (str): The name of the entity each row is associated with.
+
+    Returns:
+        pd.DataFrame: The indexed table.
+    """
     if entity_name == "person":
         table["person_id"] = person_id(table)
         table["benunit_id"] = benunit_id(table)
@@ -80,6 +89,18 @@ def index_table(table, entity_name):
     )
 
 def parse_codebook(main_folder : Path) -> dict:
+    """Attempts to automatically parse an Excel FRS codebook.
+
+    Args:
+        main_folder (Path): The path to the folder containing 'mrdoc' and 'tab'.
+
+    Raises:
+        FileNotFoundError: If the codebook can't be found.
+        Exception: If the codebook couldn't be parsed.
+
+    Returns:
+        dict: The dictionary of descriptions for variable names.
+    """
     excel_folder = main_folder / "mrdoc" / "excel"
     if excel_folder.exists():
         matches = tuple(excel_folder.glob("*hierarchical_benv_income*.xlsx"))
