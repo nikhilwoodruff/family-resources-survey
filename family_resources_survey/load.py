@@ -25,6 +25,15 @@ def load(
             ).apply(pd.to_numeric, errors="coerce")
             if table in ("adult", "benunit", "househol") and return_mdf:
                 df = mdf.MicroDataFrame(df, weights="GROSS4")
+        codebook_path = data_path.parent / "codebook.json"
+        if codebook_path.exists():
+            with open(codebook_path, "r") as f:
+                codebook = json.load(f)
+            for column in df.columns:
+                if column in codebook["description"]:
+                    df[column].description = codebook["description"][column]
+                if column in codebook["codes"]:
+                    df[column].codebook = {float(code): value for code, value in codebook["codes"][column].items()}
         return df
     else:
         raise FileNotFoundError("Could not find the data requested.")
@@ -37,7 +46,8 @@ class FRS:
         codebook_path = self.data_path / "codebook.json"
         if codebook_path.exists():
             with open(codebook_path, "r") as f:
-                self.description = json.load(f)
+                self.codebook = json.load(f)
+                self.description = self.codebook["description"]
     
     def __getattr__(self, name: str) -> pd.DataFrame:
         if name == "description":

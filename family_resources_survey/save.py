@@ -116,7 +116,15 @@ def parse_codebook(main_folder : Path) -> dict:
                     for i, row in df.iterrows():
                         if row.VARIABLE not in description:
                             description[row["VARIABLE"]] = row["DESCRIPTION (SAS LABEL)"]
-                return description
+                    df = df.set_index(df.VARIABLE.ffill())
+                    codes = {}
+                    for name, x in tqdm(df.groupby(df.index), desc="Reading decodes for variables"):
+                        for _, row in x.iterrows():
+                            if not row.VALUE != row.VALUE:
+                                if name not in codes:
+                                    codes[name] = {}
+                                codes[name][row.VALUE] = row.DECODE
+                return description, codes
             except:
                 raise Exception("Couldn't parse the codebook.")
     else:
@@ -174,9 +182,9 @@ def save(folder: str, year: int, zipped: bool = True) -> None:
     # Look for the codebook.
 
     try:
-        description = parse_codebook(main_folder)
+        description, codes = parse_codebook(main_folder)
         with open(FRS_path / "data" / year / "codebook.json", "w+") as f:
-            json.dump(description, f)
+            json.dump(dict(description=description, codes=codes), f)
     except:
         print("Couldn't automatically parse the codebook.")
 
