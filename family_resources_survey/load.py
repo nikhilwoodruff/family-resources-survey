@@ -19,6 +19,7 @@ def load(
                 data_path / (table + ".csv"),
                 usecols=columns,
                 index_col=table_to_entity[table] + "_id",
+                low_memory=False
             ).apply(pd.to_numeric, errors="coerce")
             if table in ("adult", "benunit", "household") and return_mdf:
                 df = mdf.MicroDataFrame(df, weights="GROSS4")
