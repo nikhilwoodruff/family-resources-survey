@@ -10,12 +10,7 @@ setup(
     author="Nikhil Woodruff",
     author_email="nikhil.woodruff@outlook.com",
     packages=find_packages(),
-    install_requires=[
-        "pandas",
-        "microdf @ git+https://github.com/pslmodels/microdf",
-        "openpyxl",
-        "xlrd"
-    ],
+    install_requires=["pandas", "openpyxl", "xlrd"],
     entry_points={
         "console_scripts": ["frs-data=family_resources_survey.main:main"],
     },

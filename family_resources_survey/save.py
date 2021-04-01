@@ -5,90 +5,12 @@ import shutil
 from tqdm import tqdm
 import warnings
 import json
+import re
 
 FRS_path = Path(__file__).parent
 
 
-table_entities = dict(
-    person=[
-        "accounts",
-        "adult",
-        "assets",
-        "benefits",
-        "care",
-        "child",
-        "chldcare",
-        "govpay",
-        "job",
-        "maint",
-        "oddjob",
-        "penprov",
-        "pension",
-    ],
-    benunit=[
-        "benunit",
-    ],
-    household=[
-        "endowmnt",
-        "extchild",
-        "househol",
-        "mortcont",
-        "mortgage",
-        "owner",
-        "rentcont",
-        "renter",
-    ],
-)
-
-table_to_entity = {}
-
-for entity, tables in table_entities.items():
-    for table_name in tables:
-        table_to_entity[table_name] = entity
-
-ADMIN_COLUMNS = ["sernum", "BENUNIT", "PERSON", "ISSUE", "MONTH"]
-
-
-def person_id(df: pd.DataFrame) -> pd.Series:
-    if "PERSON" in df.columns:
-        person_col = df.PERSON
-    elif "NEEDPER" in df.columns:
-        person_col = df.NEEDPER
-    return df.sernum * 1e2 + df.BENUNIT + person_col
-
-
-def benunit_id(df: pd.DataFrame) -> pd.Series:
-    return df.sernum * 1e2 + df.BENUNIT
-
-
-def household_id(df: pd.DataFrame) -> pd.Series:
-    return df.sernum
-
-
-def index_table(table : pd.DataFrame, entity_name : str):
-    """Indexes by the primary key, and adds the foreign keys as columns.
-
-    Args:
-        table (pd.DataFrame): The table to index.
-        entity_name (str): The name of the entity each row is associated with.
-
-    Returns:
-        pd.DataFrame: The indexed table.
-    """
-    if entity_name == "person":
-        table["person_id"] = person_id(table)
-        table["benunit_id"] = benunit_id(table)
-        table["household_id"] = household_id(table)
-    elif entity_name == "benunit":
-        table["benunit_id"] = benunit_id(table)
-        table["household_id"] = household_id(table)
-    elif entity_name == "household":
-        table["household_id"] = household_id(table)
-    return table.set_index(f"{entity_name}_id").drop(
-        ADMIN_COLUMNS, axis=1, errors="ignore"
-    )
-
-def parse_codebook(main_folder : Path) -> dict:
+def parse_codebook(main_folder: Path) -> dict:
     """Attempts to automatically parse an Excel FRS codebook.
 
     Args:
@@ -105,26 +27,39 @@ def parse_codebook(main_folder : Path) -> dict:
     if excel_folder.exists():
         matches = tuple(excel_folder.glob("*hierarchical_benv_income*.xlsx"))
         if len(matches) == 0:
-            raise FileNotFoundError("Found the excel folder, but could not find the codebook.")
+            raise FileNotFoundError(
+                "Found the excel folder, but could not find the codebook."
+            )
         else:
             try:
+                codebook = dict()
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     xls = pd.ExcelFile(matches[0], engine="openpyxl")
                     df = pd.read_excel(xls, "VARIABLE LISTING")
-                    description = {}
-                    for i, row in df.iterrows():
-                        if row.VARIABLE not in description:
-                            description[row["VARIABLE"]] = row["DESCRIPTION (SAS LABEL)"]
+                    for _, row in df.iterrows():
+                        if row.VARIABLE not in codebook:
+                            codebook[row["VARIABLE"]] = dict(
+                                description=row["DESCRIPTION (SAS LABEL)"]
+                            )
                     df = df.set_index(df.VARIABLE.ffill())
-                    codes = {}
-                    for name, x in tqdm(df.groupby(df.index), desc="Reading decodes for variables"):
+                    for name, x in tqdm(
+                        df.groupby(df.index),
+                        desc="Reading decodes for variables",
+                    ):
                         for _, row in x.iterrows():
                             if not row.VALUE != row.VALUE:
-                                if name not in codes:
-                                    codes[name] = {}
-                                codes[name][row.VALUE] = row.DECODE
-                return description, codes
+                                if name not in codebook:
+                                    codebook[name] = dict(
+                                        description="No description provided",
+                                        codemap=dict(),
+                                    )
+                                if "codemap" not in codebook[name]:
+                                    codebook[name]["codemap"] = dict()
+                                codebook[name]["codemap"][
+                                    row.VALUE
+                                ] = row.DECODE
+                return codebook
             except:
                 raise Exception("Couldn't parse the codebook.")
     else:
@@ -160,33 +95,37 @@ def save(folder: str, year: int, zipped: bool = True) -> None:
         shutil.rmtree(target_folder)
     os.makedirs(target_folder)
 
-    # Index the data and save.
-
-    if (main_folder / "tab").exists():
-        data_folder = main_folder / "tab"
-        data_files = list(data_folder.glob("*.tab"))
-        task = tqdm(data_files, desc="Indexing data tables")
-        for i, filepath in enumerate(task):
-            task.set_description(f"Indexing {filepath.name}")
-            table_name = filepath.name.replace(".tab", "")
-            if table_name in table_to_entity:
-                entity_name = table_to_entity[table_name]
-                df = pd.read_csv(filepath, delimiter="\t", low_memory=False).apply(pd.to_numeric, errors="coerce")
-                df = index_table(df, entity_name)
-                df.to_csv(target_folder / (table_name + ".csv"))
-            if i == len(task) - 1:
-                task.set_description("Indexed all tables")
-    else:
-        raise FileNotFoundError("Could not find the TAB files.")
-
     # Look for the codebook.
 
     try:
-        description, codes = parse_codebook(main_folder)
+        codebook = parse_codebook(main_folder)
         with open(FRS_path / "data" / year / "codebook.json", "w+") as f:
-            json.dump(dict(description=description, codes=codes), f)
+            json.dump(codebook, f)
     except:
         print("Couldn't automatically parse the codebook.")
+
+    # Save the data.
+
+    if (main_folder / "tab").exists():
+        data_folder = main_folder / "tab"
+        criterion = re.compile("[a-z]+\.tab")
+        data_files = [
+            path
+            for path in data_folder.iterdir()
+            if criterion.match(path.name)
+        ]
+        task = tqdm(data_files, desc="Saving data tables")
+        for i, filepath in enumerate(task):
+            task.set_description(f"Saving {filepath.name}")
+            table_name = filepath.name.replace(".tab", "")
+            df = pd.read_csv(filepath, delimiter="\t", low_memory=False).apply(
+                pd.to_numeric, errors="coerce"
+            )
+            df.to_csv(target_folder / (table_name + ".csv"), index=False)
+            if i == len(task) - 1:
+                task.set_description("Saved all tables")
+    else:
+        raise FileNotFoundError("Could not find the TAB files.")
 
     # Clean up tmp storage.
 
