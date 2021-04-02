@@ -8,6 +8,7 @@ def load(
     year: int,
     table: str,
     columns: List[str] = None,
+    add_entity_ids: bool = True
 ) -> pd.DataFrame:
     year = str(year)
     data_path = FRS_path / "data" / year / "raw"
@@ -16,15 +17,23 @@ def load(
             df = pd.read_csv(
                 data_path / (table + ".csv"), usecols=columns, low_memory=False
             )
+            if add_entity_ids:
+                if "PERSON" in df.columns:
+                    df["person_id"] = df.sernum * 1e+2 + df.BENUNIT * 1e+1 + df.PERSON
+                if "BENUNIT" in df.columns:
+                    df["benunit_id"] = df.sernum * 1e+2 + df.BENUNIT * 1e+1
+                if "sernum" in df.columns:
+                    df["household_id"] = df.sernum * 1e+2
         return df
     else:
         raise FileNotFoundError("Could not find the data requested.")
 
 
 class FRS:
-    def __init__(self, year: int):
+    def __init__(self, year: int, add_entity_ids=True):
         self.year = year
         self.tables = {}
+        self.add_entity_ids = add_entity_ids
         self.data_path = FRS_path / "data" / str(year)
         codebook_path = self.data_path / "codebook.json"
         self.variables = {}
@@ -47,7 +56,7 @@ class FRS:
         if name == "description":
             return self.description
         if name not in self.tables:
-            self.tables[name] = load(self.year, name)
+            self.tables[name] = load(self.year, name, add_entity_ids=self.add_entity_ids)
         return self.tables[name]
 
     @property
