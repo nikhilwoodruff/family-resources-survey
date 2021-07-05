@@ -5,6 +5,9 @@ from family_resources_survey.save import FRS_path
 import yaml
 import warnings
 
+ADULT_AGE_VAR = "AGE80"
+WEIGHT_VAR = "GROSS4"
+
 def load(
     year: int,
     table: str,
@@ -35,23 +38,41 @@ class Uprating:
     }
 
     def __init__(self, base_year: int = None, target_year: int = None):
+        self.base_year = base_year
+        self.target_year = target_year
         if base_year is not None and target_year is not None:
             self.empty = False
             self.multipliers = {}
 
-            with open(FRS_path / "uprating.yaml") as f:
-                parameters = yaml.safe_load(f)
+            with open(FRS_path / "uprating" / "uprating.yaml") as f:
+                self.parameters = yaml.safe_load(f)
+
+            self.population_projection_by_age = pd.read_csv(FRS_path / "uprating" / "population_projections.csv").set_index("lower_age")
+            self.population_projection = self.population_projection_by_age.sum()
 
             for variable in ("labour_income",):
-                if variable not in parameters:
+                if variable not in self.parameters:
                     raise Exception(f"Uprating parameters do not contain {variable}")
-                if base_year not in parameters[variable]:
+                if base_year not in self.parameters[variable]:
                     raise Exception(f"Uprating parameters do not contain the rate for {base_year} for {variable}")
-                if target_year not in parameters[variable]:
+                if target_year not in self.parameters[variable]:
                     raise Exception(f"Uprating parameters do not contain the rate for {target_year} for {variable}")
-                self.multipliers[variable] = parameters[variable][target_year] / parameters[variable][base_year]
+                self.multipliers[variable] = self.parameters[variable][target_year] / self.parameters[variable][base_year]
         else:
             self.empty = True
+    
+    def uprate_adult_weight(self, adult_weight: pd.Series, age: pd.Series, ) -> pd.Series:
+        lower_age = (age // 5) * 5
+        base_year_populations = self.population_projection_by_age[str(self.base_year)][lower_age].values
+        target_year_populations = self.population_projection_by_age[str(self.target_year)][lower_age].values
+        multipliers = target_year_populations / base_year_populations
+        return adult_weight * multipliers
+    
+    def uprate_group_weight(self, group_weight: pd.Series) -> pd.Series:
+        base_year_population = self.population_projection[str(self.base_year)]
+        target_year_population = self.population_projection[str(self.target_year)]
+        multiplier = target_year_population / base_year_population
+        return group_weight * multiplier
 
     def __call__(self, table: pd.DataFrame) -> pd.DataFrame:
         table = table.copy(deep=True)
@@ -61,6 +82,10 @@ class Uprating:
             for affected_variable in self.affected_by[variable]:
                 if affected_variable in table.columns:
                     table[affected_variable] *= self.multipliers[variable]
+        if ADULT_AGE_VAR in table.columns:
+            table[WEIGHT_VAR] = self.uprate_adult_weight(table[WEIGHT_VAR], table[ADULT_AGE_VAR]).values
+        elif WEIGHT_VAR in table.columns:
+            table[WEIGHT_VAR] = self.uprate_group_weight(table[WEIGHT_VAR]).values
         return table
 
 class FRS:
